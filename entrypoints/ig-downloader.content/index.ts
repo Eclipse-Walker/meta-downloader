@@ -157,13 +157,25 @@ export default defineContentScript({
     const idbSet = (k: string, v: any) => idb('readwrite', (s) => s.put(v, k));
 
     async function getDownloadDir(): Promise<any> {
-      let handle: any = await idbGet('dir').catch(() => null);
-      if (handle) {
-        const opts = { mode: 'readwrite' };
-        if ((await handle.queryPermission(opts)) === 'granted') return handle;
-        if ((await handle.requestPermission(opts)) === 'granted') return handle;
+      const opts = { mode: 'readwrite' };
+      const stored: any = await idbGet('dir').catch(() => null);
+      if (stored) {
+        try {
+          const granted =
+            (await stored.queryPermission(opts)) === 'granted' ||
+            (await stored.requestPermission(opts)) === 'granted';
+          // queryPermission can still report "granted" for a folder that was
+          // since deleted/moved — reading an entry throws NotFoundError then.
+          // Probe before trusting it, otherwise fall through to a fresh pick.
+          if (granted) {
+            await stored.keys().next();
+            return stored;
+          }
+        } catch (e) {
+          log('stored folder unusable, re-picking:', e);
+        }
       }
-      handle = await (window as any).showDirectoryPicker({ id: 'igdl', mode: 'readwrite', startIn: 'downloads' });
+      const handle = await (window as any).showDirectoryPicker({ id: 'igdl', mode: 'readwrite', startIn: 'downloads' });
       await idbSet('dir', handle).catch(() => {});
       return handle;
     }
