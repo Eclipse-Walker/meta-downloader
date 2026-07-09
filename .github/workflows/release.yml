@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - 'v*'
+  # Tags pushed by the bump-version workflow use GITHUB_TOKEN, which never
+  # triggers on:push (recursion guard) — so bump-version dispatches this
+  # workflow explicitly on the new tag instead.
+  workflow_dispatch:
 
 permissions:
   contents: write
