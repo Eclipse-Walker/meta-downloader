@@ -1,6 +1,6 @@
 {
-  "name": "wxt-react-starter",
-  "description": "manifest.json description",
+  "name": "meta-downloader",
+  "description": "View & download Instagram and TikTok profile pictures in full size.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
