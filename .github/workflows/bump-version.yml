@@ -1,0 +1,35 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # npm version updates package.json, commits, and tags vX.Y.Z in one step.
+      - name: Bump version
+        run: npm version ${{ inputs.bump }} -m "chore: bump version to %s"
+
+      - name: Push commit and tag
+        run: git push --follow-tags
