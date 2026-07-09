@@ -32,15 +32,22 @@ export default defineBackground(() => {
     }
   }
 
-  //MARK:OneClick
-  browser.action.onClicked.addListener(async () => {
-    try {
-      const tab = await getCurrentTab();
-      console.log(`download: ${tab.url}`);
-      await handleProfilePicture(tab, { download: true });
-    } catch (error) {
-      console.warn('error:onClicked:', error);
-    }
+  //MARK:Popup
+  // The action has a popup, so onClicked never fires — the popup's
+  // "Download" button asks for the download via this message instead.
+  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== 'download-profile-picture') return;
+    (async () => {
+      try {
+        const tab = await getCurrentTab();
+        await handleProfilePicture(tab, { download: true });
+        sendResponse({});
+      } catch (error) {
+        console.warn('error:download-profile-picture:', error);
+        sendResponse({ error: error instanceof Error ? error.message : String(error) });
+      }
+    })();
+    return true;
   });
 
   //MARK:Context menu
