@@ -1,3 +1,5 @@
+import { parseIgUsername } from '@/utils/ig';
+
 // User-Agent strings required by Instagram's private API for each endpoint.
 const IG_UA_IPHONE =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 12_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 105.0.0.11.118 (iPhone11,8; iOS 12_3_1; en_US; en-US; scale=2.00; 828x1792; 165586599)';
@@ -36,22 +38,71 @@ export default defineBackground(() => {
     }
   }
 
-  //MARK:Popup
-  // The action has a popup, so onClicked never fires — the popup's
-  // "Download" button asks for the download via this message instead.
+  const errMsg = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+  // Chunked base64 encode — spreading the whole array into fromCharCode blows
+  // the call-stack on large media, so walk it in 32 KB slices.
+  function bytesToBase64(bytes: Uint8Array): string {
+    let bin = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(bin);
+  }
+
+  //MARK:Messages
+  // Two reasons the content scripts route requests through here:
+  //   • The action has a popup, so action.onClicked never fires — the popup's
+  //     "Download" button asks for the profile-picture download instead.
+  //   • In MV3, cross-origin fetches from a content script do NOT inherit the
+  //     extension's host_permissions (no CORS bypass), but the background
+  //     service worker does. So all IG-CDN media fetches happen here.
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type !== 'download-profile-picture') return;
-    (async () => {
-      try {
-        const tab = await getCurrentTab();
-        await handleProfilePicture(tab, { download: true });
-        sendResponse({});
-      } catch (error) {
-        console.warn('error:download-profile-picture:', error);
-        sendResponse({ error: error instanceof Error ? error.message : String(error) });
-      }
-    })();
-    return true;
+    const type = message?.type;
+
+    if (type === 'download-profile-picture') {
+      (async () => {
+        try {
+          const tab = await getCurrentTab();
+          await handleProfilePicture(tab, { download: true });
+          sendResponse({});
+        } catch (error) {
+          console.warn('error:download-profile-picture:', error);
+          sendResponse({ error: errMsg(error) });
+        }
+      })();
+      return true;
+    }
+
+    // Save a media URL to the Downloads folder (post / story).
+    if (type === 'download-media') {
+      (async () => {
+        try {
+          await browser.downloads.download({ url: message.url, filename: message.filename, saveAs: false });
+          sendResponse({});
+        } catch (error) {
+          sendResponse({ error: errMsg(error) });
+        }
+      })();
+      return true;
+    }
+
+    // Fetch media bytes (base64) for the content script to write into a
+    // user-picked folder (whole-account download).
+    if (type === 'fetch-media') {
+      (async () => {
+        try {
+          const res = await fetch(message.url);
+          if (!res.ok) throw new Error(`fetch failed (${res.status})`);
+          const buf = await res.arrayBuffer();
+          sendResponse({ base64: bytesToBase64(new Uint8Array(buf)) });
+        } catch (error) {
+          sendResponse({ error: errMsg(error) });
+        }
+      })();
+      return true;
+    }
   });
 
   //MARK:Context menu
@@ -77,9 +128,9 @@ export default defineBackground(() => {
   function flashErrorBadge() {
     // MV2 Firefox exposes browserAction instead of action.
     const action = browser.action ?? (browser as any).browserAction;
-    action.setBadgeText({ text: '!' });
-    action.setBadgeBackgroundColor({ color: '#e5484d' });
-    setTimeout(() => action.setBadgeText({ text: '' }), 3000);
+    action.setBadgeText({ text: '!' }).catch(() => {});
+    action.setBadgeBackgroundColor({ color: '#e5484d' }).catch(() => {});
+    setTimeout(() => action.setBadgeText({ text: '' }).catch(() => {}), 3000);
   }
 
   // Applies a dynamic User-Agent override. Returns a promise so callers can
@@ -106,7 +157,7 @@ export default defineBackground(() => {
 
   //MARK:Instagram
   async function handleInstagram(tab: Browser.tabs.Tab, { download }: HandleOptions) {
-    const username = parseInstagramUsername(tab.url!);
+    const username = parseIgUsername(tab.url!);
     const profile = await getInstagramWebProfile(username);
     const imageUrl = await resolveInstagramImageUrl(profile, tab.id);
 
@@ -116,42 +167,14 @@ export default defineBackground(() => {
     }
 
     if (download) {
-      browser.downloads.download({
+      await browser.downloads.download({
         url: imageUrl,
         filename: `${profile.username || username}.jpg`,
         saveAs: false,
       });
     } else {
-      browser.tabs.create({ url: imageUrl });
+      await browser.tabs.create({ url: imageUrl });
     }
-  }
-
-  // Path segments that are IG features, not usernames.
-  const IG_RESERVED_SEGMENTS = new Set([
-    'p',
-    'reel',
-    'reels',
-    'tv',
-    'stories',
-    'explore',
-    'direct',
-    'accounts',
-    'locations',
-    'tags',
-  ]);
-
-  function parseInstagramUsername(link: string) {
-    const segments = new URL(link).pathname.split('/').filter(Boolean);
-    // Stories URLs carry the username second: instagram.com/stories/<user>/<id>
-    const candidate = segments[0] === 'stories' ? segments[1] : segments[0];
-    if (
-      !candidate ||
-      IG_RESERVED_SEGMENTS.has(candidate) ||
-      !/^[A-Za-z0-9_.]+$/.test(candidate)
-    ) {
-      throw new Error(`Not an Instagram profile page: ${link}`);
-    }
-    return candidate;
   }
 
   // Fetches the public web profile. This endpoint is reliable (it rides the
@@ -305,13 +328,13 @@ export default defineBackground(() => {
     const pictureUrl = await getTiktokProfilePictureUrl(username);
 
     if (download) {
-      browser.downloads.download({
+      await browser.downloads.download({
         url: pictureUrl,
         filename: `${username.replace(/[^a-zA-Z0-9_-]/g, '')}.jpg`,
         saveAs: false,
       });
     } else {
-      browser.tabs.create({ url: pictureUrl });
+      await browser.tabs.create({ url: pictureUrl });
     }
   }
 

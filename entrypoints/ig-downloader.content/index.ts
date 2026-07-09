@@ -1,19 +1,25 @@
 import './style.css';
+import { isIgProfilePath, shortcodeToId } from '@/utils/ig';
 
-// Isolated world: calls IG's private REST API, downloads media, and injects
-// the download buttons. Media ids come from the __igdl_id attribute stamped by
-// the MAIN-world tagger (ig-tagger.content.ts).
+// Isolated world: calls IG's private REST API, injects the download buttons,
+// and writes files. Media ids come from the __igdl_id attribute stamped by the
+// MAIN-world tagger (ig-tagger.content.ts). Cross-origin media fetches are
+// delegated to the background service worker (MV3 content scripts get no CORS
+// bypass from host_permissions; the background does).
 //
-// Scope: single posts (feed article, post page, profile/explore grid tiles)
-// and stories (current one / all). Whole-account download is intentionally
-// left out. ponytail: add it back only if actually needed.
+// Scope: single posts (feed article, post page, profile/explore grid tiles),
+// stories (current one / all), and whole-account download (Chromium only, via
+// the File System Access API). Excluded from Firefox — it relies on the
+// MAIN-world tagger which Firefox MV2 cannot run.
 export default defineContentScript({
   matches: ['*://*.instagram.com/*'],
+  exclude: ['firefox'],
   cssInjectionMode: 'manifest',
   runAt: 'document_idle',
   main() {
     const t = browser.i18n.getMessage;
     const log = (...a: any[]) => console.log('%c[IGDL]', 'color:#e1306c;font-weight:bold', ...a);
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const APP_ID_FALLBACK = '936619743392459';
 
     interface MediaItem {
@@ -35,19 +41,18 @@ export default defineContentScript({
       };
     }
 
-    // shortcode (base64) → numeric media id (fallback when __igdl_id is absent)
-    function shortcodeToId(shortcode: string) {
-      if (shortcode.length > 28) shortcode = shortcode.substr(0, shortcode.length - 28);
-      const lower = 'abcdefghijklmnopqrstuvwxyz';
-      const alphabet = lower.toUpperCase() + lower + '0123456789-_';
-      let id = 0n;
-      for (const ch of shortcode) id = id * 64n + BigInt(alphabet.indexOf(ch));
-      return id.toString();
-    }
-
-    async function apiGet(url: string) {
+    // Same-origin (www.instagram.com) so no CORS issue — kept in the content
+    // script to reuse the page's cookies + session app-id. Retries on 429 with
+    // backoff so a mid-pagination rate-limit doesn't kill a whole-account run.
+    async function apiGet(url: string, attempt = 0): Promise<any> {
       const res = await fetch(url, { headers: getHeaders(), credentials: 'include' });
-      if (res.status === 429) throw new Error('Instagram rate-limited the request (429) — try again shortly.');
+      if (res.status === 429) {
+        if (attempt < 3) {
+          await sleep(30000 * (attempt + 1));
+          return apiGet(url, attempt + 1);
+        }
+        throw new Error('Instagram rate-limited the request (429) — try again later.');
+      }
       if (!res.ok) throw new Error(`API responded ${res.status}`);
       return res.json();
     }
@@ -117,29 +122,27 @@ export default defineContentScript({
       return `${item.username}_${item.taken_at}_${item.id}.${ext}`.replace(/[<>:"/\\|?*]/g, '');
     }
 
-    async function fetchBlob(url: string) {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`File download failed (${res.status})`);
-      return res.blob();
+    // Save to the Downloads folder via the background service worker (it holds
+    // the host_permissions needed to fetch IG-CDN media in MV3).
+    async function saveMedia(item: MediaItem) {
+      const res = await browser.runtime.sendMessage({
+        type: 'download-media',
+        url: item.url,
+        filename: buildFilename(item),
+      });
+      if (res?.error) throw new Error(res.error);
     }
 
-    async function saveViaAnchor(item: MediaItem) {
-      const blob = await fetchBlob(item.url);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = buildFilename(item);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+    function base64ToBytes(b64: string) {
+      const bin = atob(b64);
+      const out = new Uint8Array(new ArrayBuffer(bin.length));
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
     }
 
     // ── whole-account download: remember the target folder across sessions ──
-    // FileSystemDirectoryHandle + its permission methods are non-standard, so
-    // this section is loosely typed. Chromium only (Brave needs a flag).
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
+    // Chromium only (Brave needs a flag). queryPermission/requestPermission are
+    // still a proposal, so they are accessed loosely.
     function idb(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest): Promise<any> {
       return new Promise((resolve, reject) => {
         const open = indexedDB.open('igdl', 1);
@@ -156,14 +159,19 @@ export default defineContentScript({
     const idbGet = (k: string) => idb('readonly', (s) => s.get(k));
     const idbSet = (k: string, v: any) => idb('readwrite', (s) => s.put(v, k));
 
-    async function getDownloadDir(): Promise<any> {
-      const opts = { mode: 'readwrite' };
-      const stored: any = await idbGet('dir').catch(() => null);
+    const supportsFsAccess = 'showDirectoryPicker' in self;
+
+    async function getDownloadDir(): Promise<FileSystemDirectoryHandle> {
+      if (!supportsFsAccess) {
+        throw new Error('This browser cannot choose a folder (Chromium only).');
+      }
+      const opts = { mode: 'readwrite' } as const;
+      const stored = (await idbGet('dir').catch(() => null)) as FileSystemDirectoryHandle | null;
       if (stored) {
         try {
           const granted =
-            (await stored.queryPermission(opts)) === 'granted' ||
-            (await stored.requestPermission(opts)) === 'granted';
+            (await (stored as any).queryPermission(opts)) === 'granted' ||
+            (await (stored as any).requestPermission(opts)) === 'granted';
           // queryPermission can still report "granted" for a folder that was
           // since deleted/moved — reading an entry throws NotFoundError then.
           // Probe before trusting it, otherwise fall through to a fresh pick.
@@ -175,18 +183,27 @@ export default defineContentScript({
           log('stored folder unusable, re-picking:', e);
         }
       }
-      const handle = await (window as any).showDirectoryPicker({ id: 'igdl', mode: 'readwrite', startIn: 'downloads' });
-      await idbSet('dir', handle).catch(() => {});
-      return handle;
+      // Must stay within the button click's transient activation (~5s). The idb
+      // probe above is fast, but surface the gesture/cancel errors clearly.
+      try {
+        const handle = await showDirectoryPicker({ id: 'igdl', mode: 'readwrite', startIn: 'downloads' });
+        await idbSet('dir', handle).catch(() => {});
+        return handle;
+      } catch (e: any) {
+        if (e?.name === 'AbortError') throw new Error('Folder selection cancelled.');
+        if (e?.name === 'SecurityError') throw new Error('Please click the button again to choose a folder.');
+        throw e;
+      }
     }
 
     // save into the chosen folder, skipping files that already exist
-    async function saveToDir(item: MediaItem, subdir: any): Promise<'new' | 'skip'> {
+    async function saveToDir(item: MediaItem, subdir: FileSystemDirectoryHandle): Promise<'new' | 'skip'> {
       const fh = await subdir.getFileHandle(buildFilename(item), { create: true });
       if ((await fh.getFile()).size > 0) return 'skip';
-      const blob = await fetchBlob(item.url);
+      const res = await browser.runtime.sendMessage({ type: 'fetch-media', url: item.url });
+      if (res?.error) throw new Error(res.error);
       const w = await fh.createWritable();
-      await w.write(blob);
+      await w.write(new Blob([base64ToBytes(res.base64)]));
       await w.close();
       if (item.url.includes('.mp4?')) await sleep(300); // ease IG rate-limit after a video
       return 'new';
@@ -208,14 +225,25 @@ export default defineContentScript({
     }
 
     // ── find media id for an element ──
+    // Primary path is the fiber-stamped __igdl_id; the shortcode fallback keeps
+    // things working when a layout change breaks fiber walking, by reading the
+    // permalink from the element's own href, a descendant/ancestor link, or the
+    // page URL.
     function idFromElement(el: Element): string | null {
-      const id = el.getAttribute('__igdl_id');
-      if (id) return id;
+      const direct = el.getAttribute('__igdl_id');
+      if (direct) return direct;
       const tagged = el.querySelector?.('[__igdl_id]') || el.closest?.('[__igdl_id]');
       if (tagged) return tagged.getAttribute('__igdl_id');
-      const m = location.pathname.match(/\/(p|reel|tv)\/([^/]+)/);
-      if (m) return shortcodeToId(m[2]);
-      return null;
+      const href =
+        el.getAttribute?.('href') ||
+        el.querySelector?.('a[href*="/p/"], a[href*="/reel/"], a[href*="/tv/"]')?.getAttribute('href') ||
+        location.pathname;
+      const sc = href?.match(/\/(?:p|reel|tv)\/([^/?#]+)/)?.[1];
+      try {
+        return sc ? shortcodeToId(sc) : null;
+      } catch {
+        return null;
+      }
     }
 
     // ── download flows ──
@@ -225,7 +253,7 @@ export default defineContentScript({
       const items = await getPostItems(mediaId);
       for (let i = 0; i < items.length; i++) {
         toast(`${t('msgDownloading')} ${i + 1}/${items.length}…`, true);
-        await saveViaAnchor(items[i]);
+        await saveMedia(items[i]);
       }
       toast(`✓ ${t('msgDone')} (${items.length})`);
     }
@@ -254,7 +282,7 @@ export default defineContentScript({
 
       for (let i = 0; i < items.length; i++) {
         toast(`${t('msgDownloading')} ${i + 1}/${items.length}…`, true);
-        await saveViaAnchor(items[i]);
+        await saveMedia(items[i]);
       }
       toast(`✓ ${t('msgDone')} (${items.length})`);
     }
@@ -263,29 +291,29 @@ export default defineContentScript({
       const username = location.pathname.split('/').filter(Boolean)[0];
       if (!username) throw new Error('Could not determine the account name.');
 
+      // Pick the folder first, while the click's user activation is still live.
       toast(t('msgChoosingFolder'), true);
       const dir = await getDownloadDir();
       const acc = await getAccount(username);
       const subdir = await dir.getDirectoryHandle(acc.username, { create: true });
 
-      // page through the whole feed
+      // Page through the feed and save each page as it arrives — no giant
+      // in-memory buffer, and a later-page failure keeps what's already saved.
       let maxId: string | undefined;
-      let all: MediaItem[] = [];
+      let done = 0, created = 0, skipped = 0;
       do {
-        toast(`${t('msgFindingPosts')} (${all.length}/${acc.totalPosts})`, true);
         const page = await getFeedPage(username, maxId);
-        all = all.concat(page.items);
+        for (const item of page.items) {
+          done++;
+          toast(`${t('msgDownloading')} ${done}/${acc.totalPosts} (${t('msgNew')} ${created}, ${t('msgSkipped')} ${skipped})…`, true);
+          try {
+            (await saveToDir(item, subdir)) === 'new' ? created++ : skipped++;
+          } catch (e) { log('skipped failed file:', e); }
+        }
         maxId = page.nextMaxId;
         if (maxId) await sleep(1500); // throttle to avoid rate-limit
       } while (maxId);
 
-      let created = 0, skipped = 0;
-      for (let i = 0; i < all.length; i++) {
-        toast(`${t('msgDownloading')} ${i + 1}/${all.length} (${t('msgNew')} ${created}, ${t('msgSkipped')} ${skipped})…`, true);
-        try {
-          (await saveToDir(all[i], subdir)) === 'new' ? created++ : skipped++;
-        } catch (e) { log('skipped failed file:', e); }
-      }
       toast(`✓ ${t('msgDone')}: ${t('msgNew')} ${created}, ${t('msgSkipped')} ${skipped}`);
     }
 
@@ -314,9 +342,8 @@ export default defineContentScript({
         if (article.dataset.igdlBtn) continue;
         article.dataset.igdlBtn = '1';
         if (getComputedStyle(article).position === 'static') article.style.position = 'relative';
-        const id = article.getAttribute('__igdl_id');
         article.appendChild(
-          makeBtn('igdl-corner', t('postDownloadTitle'), () => downloadPost(idFromElement(article) || id)),
+          makeBtn('igdl-corner', t('postDownloadTitle'), () => downloadPost(idFromElement(article))),
         );
       }
     }
@@ -328,8 +355,7 @@ export default defineContentScript({
         if (tile.dataset.igdlBtn) continue;
         tile.dataset.igdlBtn = '1';
         if (getComputedStyle(tile).position === 'static') tile.style.position = 'relative';
-        const id = tile.getAttribute('__igdl_id');
-        tile.appendChild(makeBtn('igdl-corner', t('postDownloadTitle'), () => downloadPost(id)));
+        tile.appendChild(makeBtn('igdl-corner', t('postDownloadTitle'), () => downloadPost(idFromElement(tile))));
       }
     }
 
@@ -359,9 +385,6 @@ export default defineContentScript({
     }
 
     const isStory = () => /^\/stories\//.test(location.pathname);
-    const isProfile = () =>
-      /^\/[^/]+\/?$/.test(location.pathname) &&
-      !/^\/(explore|reels|direct|accounts|p|reel|tv|stories)\/?$/.test(location.pathname);
 
     function updateFloatingBar() {
       if (isStory()) {
@@ -372,7 +395,7 @@ export default defineContentScript({
             { label: t('storyAll'), onClick: () => downloadStory(true) },
           ],
         });
-      } else if (isProfile()) {
+      } else if (isIgProfilePath(location.pathname) && supportsFsAccess) {
         setFloatingBar({
           kind: 'account',
           items: [{ label: t('accountAll'), onClick: () => downloadAccount() }],
