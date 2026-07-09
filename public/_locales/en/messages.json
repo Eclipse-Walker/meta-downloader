@@ -46,5 +46,20 @@
   },
   "msgNoStory": {
     "message": "No story found to download."
+  },
+  "accountAll": {
+    "message": "⬇ Whole account"
+  },
+  "msgChoosingFolder": {
+    "message": "Choosing folder…"
+  },
+  "msgFindingPosts": {
+    "message": "Finding posts…"
+  },
+  "msgNew": {
+    "message": "new"
+  },
+  "msgSkipped": {
+    "message": "skipped"
   }
 }

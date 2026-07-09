@@ -77,7 +77,26 @@ export default defineContentScript({
         `https://www.instagram.com/api/v1/users/web_profile_info/?username=${username}`,
       );
       const u = json.data.user;
-      return { id: u.id as string, username: u.username as string };
+      return {
+        id: u.id as string,
+        username: u.username as string,
+        totalPosts: (u.edge_owner_to_timeline_media?.count as number) || 0,
+      };
+    }
+
+    // one feed page (12 posts) → { items, nextMaxId }
+    async function getFeedPage(username: string, maxId?: string) {
+      const json = await apiGet(
+        `https://www.instagram.com/api/v1/feed/user/${username}/username/?count=12${maxId ? '&max_id=' + maxId : ''}`,
+      );
+      const items: MediaItem[] = [];
+      for (const media of json.items || []) {
+        const uname = media.user?.username || username;
+        const children = media.carousel_media || [media];
+        for (const c of children)
+          items.push({ id: c.id, username: uname, taken_at: c.taken_at, url: bestUrl(c) });
+      }
+      return { items, nextMaxId: json.more_available ? (json.next_max_id as string) : undefined };
     }
 
     async function getReelItems(reelId: string): Promise<MediaItem[]> {
@@ -114,6 +133,51 @@ export default defineContentScript({
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+    }
+
+    // ── whole-account download: remember the target folder across sessions ──
+    // FileSystemDirectoryHandle + its permission methods are non-standard, so
+    // this section is loosely typed. Chromium only (Brave needs a flag).
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    function idb(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest): Promise<any> {
+      return new Promise((resolve, reject) => {
+        const open = indexedDB.open('igdl', 1);
+        open.onupgradeneeded = () => open.result.createObjectStore('kv');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const store = open.result.transaction('kv', mode).objectStore('kv');
+          const req = fn(store);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        };
+      });
+    }
+    const idbGet = (k: string) => idb('readonly', (s) => s.get(k));
+    const idbSet = (k: string, v: any) => idb('readwrite', (s) => s.put(v, k));
+
+    async function getDownloadDir(): Promise<any> {
+      let handle: any = await idbGet('dir').catch(() => null);
+      if (handle) {
+        const opts = { mode: 'readwrite' };
+        if ((await handle.queryPermission(opts)) === 'granted') return handle;
+        if ((await handle.requestPermission(opts)) === 'granted') return handle;
+      }
+      handle = await (window as any).showDirectoryPicker({ id: 'igdl', mode: 'readwrite', startIn: 'downloads' });
+      await idbSet('dir', handle).catch(() => {});
+      return handle;
+    }
+
+    // save into the chosen folder, skipping files that already exist
+    async function saveToDir(item: MediaItem, subdir: any): Promise<'new' | 'skip'> {
+      const fh = await subdir.getFileHandle(buildFilename(item), { create: true });
+      if ((await fh.getFile()).size > 0) return 'skip';
+      const blob = await fetchBlob(item.url);
+      const w = await fh.createWritable();
+      await w.write(blob);
+      await w.close();
+      if (item.url.includes('.mp4?')) await sleep(300); // ease IG rate-limit after a video
+      return 'new';
     }
 
     // ── status toast ──
@@ -181,6 +245,36 @@ export default defineContentScript({
         await saveViaAnchor(items[i]);
       }
       toast(`✓ ${t('msgDone')} (${items.length})`);
+    }
+
+    async function downloadAccount() {
+      const username = location.pathname.split('/').filter(Boolean)[0];
+      if (!username) throw new Error('Could not determine the account name.');
+
+      toast(t('msgChoosingFolder'), true);
+      const dir = await getDownloadDir();
+      const acc = await getAccount(username);
+      const subdir = await dir.getDirectoryHandle(acc.username, { create: true });
+
+      // page through the whole feed
+      let maxId: string | undefined;
+      let all: MediaItem[] = [];
+      do {
+        toast(`${t('msgFindingPosts')} (${all.length}/${acc.totalPosts})`, true);
+        const page = await getFeedPage(username, maxId);
+        all = all.concat(page.items);
+        maxId = page.nextMaxId;
+        if (maxId) await sleep(1500); // throttle to avoid rate-limit
+      } while (maxId);
+
+      let created = 0, skipped = 0;
+      for (let i = 0; i < all.length; i++) {
+        toast(`${t('msgDownloading')} ${i + 1}/${all.length} (${t('msgNew')} ${created}, ${t('msgSkipped')} ${skipped})…`, true);
+        try {
+          (await saveToDir(all[i], subdir)) === 'new' ? created++ : skipped++;
+        } catch (e) { log('skipped failed file:', e); }
+      }
+      toast(`✓ ${t('msgDone')}: ${t('msgNew')} ${created}, ${t('msgSkipped')} ${skipped}`);
     }
 
     // wrap handler: block default nav + surface errors
@@ -253,6 +347,9 @@ export default defineContentScript({
     }
 
     const isStory = () => /^\/stories\//.test(location.pathname);
+    const isProfile = () =>
+      /^\/[^/]+\/?$/.test(location.pathname) &&
+      !/^\/(explore|reels|direct|accounts|p|reel|tv|stories)\/?$/.test(location.pathname);
 
     function updateFloatingBar() {
       if (isStory()) {
@@ -262,6 +359,11 @@ export default defineContentScript({
             { label: t('storyThis'), onClick: () => downloadStory(false) },
             { label: t('storyAll'), onClick: () => downloadStory(true) },
           ],
+        });
+      } else if (isProfile()) {
+        setFloatingBar({
+          kind: 'account',
+          items: [{ label: t('accountAll'), onClick: () => downloadAccount() }],
         });
       } else {
         setFloatingBar(null);
