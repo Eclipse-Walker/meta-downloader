@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   bump:
@@ -29,7 +30,17 @@ jobs:
 
       # npm version updates package.json, commits, and tags vX.Y.Z in one step.
       - name: Bump version
-        run: 'npm version ${{ inputs.bump }} -m "chore: bump version to %s"'
+        id: bump
+        run: |
+          NEW_TAG=$(npm version ${{ inputs.bump }} -m "chore: bump version to %s")
+          echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Push commit and tag
         run: git push --follow-tags
+
+      # The tag above was pushed with GITHUB_TOKEN, which never triggers
+      # on:push workflows (recursion guard) — dispatch the release directly.
+      - name: Trigger release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml --ref '${{ steps.bump.outputs.tag }}'
