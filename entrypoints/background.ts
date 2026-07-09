@@ -11,7 +11,7 @@ interface HandleOptions {
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(() => {
     browser.contextMenus.create({
-      title: 'Meta Downloader',
+      title: browser.i18n.getMessage('extName'),
       id: 'parent',
     });
   });

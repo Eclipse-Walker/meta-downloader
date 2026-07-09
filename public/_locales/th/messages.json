@@ -1,0 +1,20 @@
+{
+  "extName": {
+    "message": "Meta Downloader"
+  },
+  "extDescription": {
+    "message": "ดูและดาวน์โหลดรูปโปรไฟล์ Instagram และ TikTok แบบเต็มขนาด"
+  },
+  "downloadButton": {
+    "message": "ดาวน์โหลดรูปโปรไฟล์"
+  },
+  "downloading": {
+    "message": "กำลังดาวน์โหลด…"
+  },
+  "downloaded": {
+    "message": "ดาวน์โหลดสำเร็จ!"
+  },
+  "openProfileHint": {
+    "message": "เปิดหน้าโปรไฟล์ Instagram หรือ TikTok เพื่อดาวน์โหลดรูปโปรไฟล์"
+  }
+}
