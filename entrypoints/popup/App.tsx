@@ -3,6 +3,8 @@ import './App.css';
 
 type Platform = 'instagram' | 'tiktok' | null;
 
+const t = browser.i18n.getMessage;
+
 function detectPlatform(url?: string): Platform {
   if (!url) return null;
   if (url.includes('instagram.com')) return 'instagram';
@@ -13,6 +15,7 @@ function detectPlatform(url?: string): Platform {
 function App() {
   const [platform, setPlatform] = useState<Platform>(null);
   const [status, setStatus] = useState('');
+  const [isError, setIsError] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -24,11 +27,13 @@ function App() {
   async function download() {
     setBusy(true);
     setStatus('');
+    setIsError(false);
     try {
       const response = await browser.runtime.sendMessage({ type: 'download-profile-picture' });
       if (response?.error) throw new Error(response.error);
-      setStatus('Downloaded!');
+      setStatus(t('downloaded'));
     } catch (error) {
+      setIsError(true);
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
@@ -37,15 +42,15 @@ function App() {
 
   return (
     <>
-      <h1>Meta Downloader</h1>
+      <h1>{t('extName')}</h1>
       {platform ? (
         <button type="button" onClick={download} disabled={busy}>
-          {busy ? 'Downloading…' : 'Download profile picture'}
+          {busy ? t('downloading') : t('downloadButton')}
         </button>
       ) : (
-        <p className="status">Open an Instagram or TikTok profile to download its picture.</p>
+        <p className="status">{t('openProfileHint')}</p>
       )}
-      {status && <p className={`status${status !== 'Downloaded!' ? ' error' : ''}`}>{status}</p>}
+      {status && <p className={`status${isError ? ' error' : ''}`}>{status}</p>}
     </>
   );
 }

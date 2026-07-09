@@ -4,8 +4,9 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'Meta Downloader',
-    description: 'View & download Instagram and TikTok profile pictures in full size.',
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     permissions: ['contextMenus', 'declarativeNetRequest', 'downloads', 'scripting', 'tabs'],
     host_permissions: [
       'https://*.instagram.com/*',
@@ -13,7 +14,7 @@ export default defineConfig({
       '*://www.tiktok.com/*',
     ],
     action: {
-      default_title: 'View/download Instagram & TikTok profile picture',
+      default_title: '__MSG_extDescription__',
     },
     declarative_net_request: {
       rule_resources: [{ id: 'ruleset_1', enabled: true, path: 'rules.json' }],
