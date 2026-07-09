@@ -9,10 +9,14 @@ interface HandleOptions {
 }
 
 export default defineBackground(() => {
-  browser.runtime.onInstalled.addListener(() => {
+  browser.runtime.onInstalled.addListener(async () => {
+    // onInstalled also fires on extension update, where the menu still
+    // exists — creating it again without removeAll throws "duplicate id".
+    await browser.contextMenus.removeAll();
     browser.contextMenus.create({
       title: browser.i18n.getMessage('extName'),
       id: 'parent',
+      documentUrlPatterns: ['*://*.instagram.com/*', '*://*.tiktok.com/*'],
     });
   });
 
@@ -111,10 +115,29 @@ export default defineBackground(() => {
     }
   }
 
+  // Path segments that are IG features, not usernames.
+  const IG_RESERVED_SEGMENTS = new Set([
+    'p',
+    'reel',
+    'reels',
+    'stories',
+    'explore',
+    'direct',
+    'accounts',
+  ]);
+
   function parseInstagramUsername(link: string) {
-    const match = link.match(/(?<=instagram\.com\/)[A-Za-z0-9_.]+/);
-    if (!match) throw new Error(`Could not parse Instagram username from: ${link}`);
-    return match[0];
+    const segments = new URL(link).pathname.split('/').filter(Boolean);
+    // Stories URLs carry the username second: instagram.com/stories/<user>/<id>
+    const candidate = segments[0] === 'stories' ? segments[1] : segments[0];
+    if (
+      !candidate ||
+      IG_RESERVED_SEGMENTS.has(candidate) ||
+      !/^[A-Za-z0-9_.]+$/.test(candidate)
+    ) {
+      throw new Error(`Not an Instagram profile page: ${link}`);
+    }
+    return candidate;
   }
 
   // Fetches the public web profile. This endpoint is reliable (it rides the
@@ -279,7 +302,7 @@ export default defineBackground(() => {
   }
 
   function parseTiktokUsername(link: string) {
-    const match = link.match(/(?<=tiktok\.com\/)@[a-zA-Z0-9.]*/);
+    const match = link.match(/(?<=tiktok\.com\/)@[\w.]+/);
     if (!match) throw new Error(`Could not parse TikTok username from: ${link}`);
     return match[0];
   }

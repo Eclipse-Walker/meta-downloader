@@ -12,7 +12,7 @@ Chrome/Firefox extension to view & download Instagram and TikTok profile picture
 Tries the highest-resolution source first and falls back down the chain:
 
 1. Instagram's web GraphQL (`PolarisProfilePageContentQuery`) — true 1080px image, requires an active IG login. The request runs inside the IG tab via `scripting.executeScript` so it inherits the page's cookies and session tokens.
-2. Private mobile `/users/<id>/info/` endpoint — 1080px but often center-cropped. Uses a `declarativeNetRequest` rule ([public/rules.json](public/rules.json)) to spoof the mobile app User-Agent.
+2. Private mobile `/users/<id>/info/` endpoint — 1080px but often center-cropped. A dynamic `declarativeNetRequest` rule (set at runtime in the background script) spoofs the mobile app User-Agent.
 3. URLs already present in the web profile response — last resort, ~320px.
 
 The GraphQL `doc_id` is rotated by Meta whenever their web bundle redeploys, so step 1 is expected to break periodically; the fallback chain keeps the extension working.
@@ -47,5 +47,5 @@ bun run compile        # type-check only
 | --- | --- |
 | [entrypoints/background.ts](entrypoints/background.ts) | All download/view logic: context menu, popup message handler, IG/TikTok resolvers |
 | [entrypoints/popup/](entrypoints/popup/) | Toolbar popup (React) — download button today, settings/feature flags later |
-| [public/rules.json](public/rules.json) | Static `declarativeNetRequest` User-Agent rule for the IG mobile API |
-| [wxt.config.ts](wxt.config.ts) | Manifest: permissions, host permissions, DNR ruleset |
+| [public/_locales/](public/_locales/) | i18n messages (en, th) |
+| [wxt.config.ts](wxt.config.ts) | Manifest: permissions, host permissions, locale placeholders |

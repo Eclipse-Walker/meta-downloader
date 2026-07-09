@@ -16,8 +16,5 @@ export default defineConfig({
     action: {
       default_title: '__MSG_extDescription__',
     },
-    declarative_net_request: {
-      rule_resources: [{ id: 'ruleset_1', enabled: true, path: 'rules.json' }],
-    },
   },
 });
