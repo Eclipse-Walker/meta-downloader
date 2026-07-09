@@ -29,7 +29,7 @@ jobs:
 
       # npm version updates package.json, commits, and tags vX.Y.Z in one step.
       - name: Bump version
-        run: npm version ${{ inputs.bump }} -m "chore: bump version to %s"
+        run: 'npm version ${{ inputs.bump }} -m "chore: bump version to %s"'
 
       - name: Push commit and tag
         run: git push --follow-tags

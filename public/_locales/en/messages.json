@@ -14,6 +14,9 @@
   "downloaded": {
     "message": "Downloaded!"
   },
+  "downloadFailed": {
+    "message": "Download failed. Make sure you are on a profile page and logged in."
+  },
   "openProfileHint": {
     "message": "Open an Instagram or TikTok profile to download its picture."
   }
