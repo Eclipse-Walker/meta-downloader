@@ -21,7 +21,8 @@ function App() {
   useEffect(() => {
     browser.tabs
       .query({ active: true, currentWindow: true })
-      .then(([tab]) => setPlatform(detectPlatform(tab?.url)));
+      .then(([tab]) => setPlatform(detectPlatform(tab?.url)))
+      .catch(() => setPlatform(null));
   }, []);
 
   async function download() {
@@ -33,8 +34,9 @@ function App() {
       if (response?.error) throw new Error(response.error);
       setStatus(t('downloaded'));
     } catch (error) {
+      console.warn('download failed:', error);
       setIsError(true);
-      setStatus(error instanceof Error ? error.message : String(error));
+      setStatus(t('downloadFailed'));
     } finally {
       setBusy(false);
     }

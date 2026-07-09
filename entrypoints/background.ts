@@ -68,8 +68,19 @@ export default defineBackground(() => {
       await handleProfilePicture(tab, { download: false });
     } catch (error) {
       console.warn('error:genericOnClick:', error);
+      flashErrorBadge();
     }
   });
+
+  // Context-menu failures have no UI of their own — flash a badge on the
+  // toolbar icon so the user at least sees something went wrong.
+  function flashErrorBadge() {
+    // MV2 Firefox exposes browserAction instead of action.
+    const action = browser.action ?? (browser as any).browserAction;
+    action.setBadgeText({ text: '!' });
+    action.setBadgeBackgroundColor({ color: '#e5484d' });
+    setTimeout(() => action.setBadgeText({ text: '' }), 3000);
+  }
 
   // Applies a dynamic User-Agent override. Returns a promise so callers can
   // await it and guarantee the rule is active before the request fires.
@@ -120,10 +131,13 @@ export default defineBackground(() => {
     'p',
     'reel',
     'reels',
+    'tv',
     'stories',
     'explore',
     'direct',
     'accounts',
+    'locations',
+    'tags',
   ]);
 
   function parseInstagramUsername(link: string) {
