@@ -19,5 +19,32 @@
   },
   "openProfileHint": {
     "message": "เปิดหน้าโปรไฟล์ Instagram หรือ TikTok เพื่อดาวน์โหลดรูปโปรไฟล์"
+  },
+  "postDownloadTitle": {
+    "message": "ดาวน์โหลดโพสต์นี้"
+  },
+  "storyThis": {
+    "message": "⬇ สตอรี่นี้"
+  },
+  "storyAll": {
+    "message": "⬇⬇ ทั้งหมด"
+  },
+  "msgFetchingPost": {
+    "message": "กำลังดึงข้อมูลโพสต์…"
+  },
+  "msgFetchingStory": {
+    "message": "กำลังดึงสตอรี่…"
+  },
+  "msgFindingAccount": {
+    "message": "กำลังหาบัญชี…"
+  },
+  "msgDownloading": {
+    "message": "กำลังดาวน์โหลด"
+  },
+  "msgDone": {
+    "message": "เสร็จ"
+  },
+  "msgNoStory": {
+    "message": "ไม่พบสตอรี่ที่จะดาวน์โหลด"
   }
 }

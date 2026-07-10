@@ -11,6 +11,8 @@ export default defineConfig({
     host_permissions: [
       'https://*.instagram.com/*',
       'https://www.instagram.com/*',
+      '*://*.cdninstagram.com/*',
+      '*://*.fbcdn.net/*',
       '*://www.tiktok.com/*',
     ],
     action: {

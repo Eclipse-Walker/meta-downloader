@@ -19,5 +19,32 @@
   },
   "openProfileHint": {
     "message": "Open an Instagram or TikTok profile to download its picture."
+  },
+  "postDownloadTitle": {
+    "message": "Download this post"
+  },
+  "storyThis": {
+    "message": "⬇ This story"
+  },
+  "storyAll": {
+    "message": "⬇⬇ All"
+  },
+  "msgFetchingPost": {
+    "message": "Fetching post…"
+  },
+  "msgFetchingStory": {
+    "message": "Fetching story…"
+  },
+  "msgFindingAccount": {
+    "message": "Finding account…"
+  },
+  "msgDownloading": {
+    "message": "Downloading"
+  },
+  "msgDone": {
+    "message": "Done"
+  },
+  "msgNoStory": {
+    "message": "No story found to download."
   }
 }
