@@ -1,0 +1,66 @@
+/* corner button on posts / grid tiles */
+.igdl-btn {
+  all: unset;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+article:hover > .igdl-btn,
+a:hover > .igdl-btn {
+  opacity: 1;
+}
+.igdl-btn:hover {
+  background: #e1306c;
+}
+
+/* floating bar (story) */
+#igdl-bar {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  display: flex;
+  gap: 8px;
+}
+.igdl-fbtn {
+  all: unset;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #0095f6;
+  color: #fff;
+  font: 600 14px system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.igdl-fbtn:hover {
+  background: #0081d6;
+}
+
+/* status toast */
+.igdl-toast {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  z-index: 2147483647;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font: 500 13px system-ui, sans-serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  display: none;
+}

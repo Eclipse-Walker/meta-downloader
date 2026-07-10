@@ -4,8 +4,22 @@ Chrome/Firefox extension to view & download Instagram and TikTok profile picture
 
 ## Usage
 
+### Profile pictures
+
 - **Toolbar popup** — open an Instagram or TikTok profile, click the extension icon, then **Download profile picture**. The image is saved as `<username>.jpg`.
 - **Context menu** — right-click anywhere on the profile page and choose **Meta Downloader** to open the full-size picture in a new tab.
+
+### Instagram posts & stories
+
+On-page buttons injected while browsing instagram.com (must be logged in):
+
+| Where | Button | Action |
+| --- | --- | --- |
+| Feed post / post page | ⬇ top-right corner (on hover) | Download that post (all carousel items) |
+| Profile / explore / saved grid | ⬇ on the tile (on hover) | Download that post |
+| Story page | Floating bottom-right: **This story / All** | Download the current story or the whole reel |
+
+Posts and stories save to your normal Downloads folder as `<username>_<taken_at>_<id>.<ext>`.
 
 ### How it resolves the Instagram image
 
@@ -47,5 +61,9 @@ bun run compile        # type-check only
 | --- | --- |
 | [entrypoints/background.ts](entrypoints/background.ts) | All download/view logic: context menu, popup message handler, IG/TikTok resolvers |
 | [entrypoints/popup/](entrypoints/popup/) | Toolbar popup (React) — download button today, settings/feature flags later |
+| [entrypoints/ig-tagger.content.ts](entrypoints/ig-tagger.content.ts) | MAIN-world content script: SPA history hook + stamps media ids from React fiber onto `__igdl_id` attributes |
+| [entrypoints/ig-downloader.content/](entrypoints/ig-downloader.content/) | Isolated content script: IG API calls, post/story download, injected buttons |
 | [public/_locales/](public/_locales/) | i18n messages (en, th) |
 | [wxt.config.ts](wxt.config.ts) | Manifest: permissions, host permissions, locale placeholders |
+
+> **Firefox note:** post/story download relies on reading React fiber from a `world: "MAIN"` content script. Firefox only honors `world: "MAIN"` on MV3 (128+); the current MV2 Firefox build ignores it, so fiber-based ids are unavailable there and only post *pages* (which fall back to the shortcode in the URL) work reliably. Profile-picture download is unaffected. The post/story feature is developed and tested against Chrome.
