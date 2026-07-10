@@ -46,5 +46,20 @@
   },
   "msgNoStory": {
     "message": "ไม่พบสตอรี่ที่จะดาวน์โหลด"
+  },
+  "accountAll": {
+    "message": "⬇ ทั้งบัญชี"
+  },
+  "msgChoosingFolder": {
+    "message": "กำลังเลือกโฟลเดอร์…"
+  },
+  "msgFindingPosts": {
+    "message": "กำลังหาโพสต์…"
+  },
+  "msgNew": {
+    "message": "ใหม่"
+  },
+  "msgSkipped": {
+    "message": "ข้าม"
   }
 }

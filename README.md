@@ -18,8 +18,9 @@ On-page buttons injected while browsing instagram.com (must be logged in):
 | Feed post / post page | ⬇ top-right corner (on hover) | Download that post (all carousel items) |
 | Profile / explore / saved grid | ⬇ on the tile (on hover) | Download that post |
 | Story page | Floating bottom-right: **This story / All** | Download the current story or the whole reel |
+| Profile page | Floating bottom-right: **Whole account** | Pick a folder, then download every post (skips files already saved) |
 
-Posts and stories save to your normal Downloads folder as `<username>_<taken_at>_<id>.<ext>`.
+Posts and stories save to your normal Downloads folder as `<username>_<taken_at>_<id>.<ext>`. Whole-account download saves into a folder you pick via the File System Access API (Chromium only; the handle is remembered in IndexedDB so you only choose once).
 
 ### How it resolves the Instagram image
 
@@ -66,4 +67,4 @@ bun run compile        # type-check only
 | [public/_locales/](public/_locales/) | i18n messages (en, th) |
 | [wxt.config.ts](wxt.config.ts) | Manifest: permissions, host permissions, locale placeholders |
 
-> **Firefox note:** post/story download relies on reading React fiber from a `world: "MAIN"` content script. Firefox only honors `world: "MAIN"` on MV3 (128+); the current MV2 Firefox build ignores it, so fiber-based ids are unavailable there and only post *pages* (which fall back to the shortcode in the URL) work reliably. Profile-picture download is unaffected. The post/story feature is developed and tested against Chrome.
+> **Firefox note:** post/story/account download relies on reading React fiber from a `world: "MAIN"` content script, which Firefox only honors on MV3 (128+) — the MV2 Firefox build cannot run it. Both content scripts are therefore **excluded from the Firefox build** (`exclude: ['firefox']`), so the injected buttons never appear there. Profile-picture download (popup + context menu) works on Firefox as normal. Whole-account download additionally needs the File System Access API and is Chromium-only even on Chrome-family browsers (Brave requires a flag); the button is hidden when the API is unavailable.
