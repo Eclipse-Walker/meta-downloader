@@ -35,6 +35,12 @@
   "storyAll": {
     "message": "⬇⬇ All"
   },
+  "storyThisTitle": {
+    "message": "Download this story"
+  },
+  "storyAllTitle": {
+    "message": "Download all stories"
+  },
   "msgFetchingPost": {
     "message": "Fetching post…"
   },

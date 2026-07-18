@@ -35,6 +35,12 @@
   "storyAll": {
     "message": "⬇⬇ ทั้งหมด"
   },
+  "storyThisTitle": {
+    "message": "ดาวน์โหลดสตอรี่นี้"
+  },
+  "storyAllTitle": {
+    "message": "ดาวน์โหลดสตอรี่ทั้งหมด"
+  },
   "msgFetchingPost": {
     "message": "กำลังดึงข้อมูลโพสต์…"
   },
