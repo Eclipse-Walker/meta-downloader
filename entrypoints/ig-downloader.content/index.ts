@@ -501,6 +501,55 @@ export default defineContentScript({
       return true;
     }
 
+    // The "similar accounts" (person+) icon — the last of the three icons in
+    // the Follow/Message/+account row. Verified SVG path (confirmed against a
+    // live profile), so this is exact, not a locale-dependent text guess —
+    // same reasoning as the Save-button selector.
+    const PROFILE_SIMILAR_ACCOUNTS_SEL =
+      'div[role="button"]:has([d="M8 10a1 1 0 1 1 0 2H2a1 1 0 1 1 0-2h6Zm9.5-2.5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Zm2 0a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Zm-4.501 5.667c3.147 0 5.945 1.495 7.61 3.801.889 1.231.185 2.837-1.18 3.215-1.34.372-3.549.817-6.429.817-2.878 0-5.091-.447-6.44-.822-1.37-.38-2.048-1.995-1.17-3.212 1.666-2.305 4.463-3.8 7.609-3.8Zm0 2c-2.51 0-4.702 1.191-5.987 2.971-.01.015-.012.024-.012.024 0 .003 0 .01.004.02s.012.023.024.035c.012.01.032.025.068.035C10.297 18.585 12.33 19 15 19c2.674 0 4.7-.413 5.895-.744a.182.182 0 0 0 .076-.038.096.096 0 0 0 .025-.038.044.044 0 0 0 .004-.017s0-.008-.012-.024c-1.285-1.78-3.478-2.972-5.989-2.972Z"])';
+
+    // Text-match fallback for when the +account icon isn't present (e.g. a
+    // brand-new/small account with no "similar accounts" suggestion) — less
+    // reliable than a verified path since the label is locale-dependent.
+    const FOLLOW_LABELS = ['follow', 'following', 'requested', 'ติดตาม', 'กำลังติดตาม', 'ขอติดตามแล้ว'];
+
+    function findProfileActionRow(): HTMLElement | null {
+      const anchor = document.querySelector<HTMLElement>(PROFILE_SIMILAR_ACCOUNTS_SEL);
+      if (anchor && anchor.offsetParent !== null) {
+        // Mirror the Save-button lesson learned earlier: the icon's immediate
+        // parent may be its own hover-styled slot, not the shared row — go up
+        // one more level so our button's hover can't bleed into this icon's.
+        const row = anchor.parentElement?.parentElement;
+        if (row) return row;
+      }
+
+      let buttons = [...document.querySelectorAll<HTMLElement>('header button, header div[role="button"]')];
+      if (buttons.length === 0) {
+        buttons = [...document.querySelectorAll<HTMLElement>('button, div[role="button"]')];
+      }
+      const follow = buttons.find((b) => {
+        const text = b.textContent?.trim().toLowerCase() ?? '';
+        return FOLLOW_LABELS.some((label) => text.includes(label));
+      });
+      if (!follow) {
+        log('no profile action row match; header buttons seen:', buttons.slice(0, 15).map((b) => b.textContent?.trim()));
+      }
+      return follow?.parentElement ?? null;
+    }
+
+    // Returns true if the button is (now) sitting inline next to Follow/
+    // Message, so the caller can skip the floating-bar fallback.
+    function injectAccountInlineButton(): boolean {
+      const row = findProfileActionRow();
+      if (!row) return false;
+      if (row.querySelector(':scope > .igdl-inline')) return true;
+
+      row.style.setProperty('display', 'flex');
+      row.style.setProperty('align-items', 'center');
+      row.appendChild(makeBtn('igdl-inline', t('accountAllTitle'), () => downloadAccount(), '⬇'));
+      return true;
+    }
+
     function updateFloatingBar() {
       if (isStory()) {
         if (injectStoryInlineButtons()) { setFloatingBar(null); return; }
@@ -512,6 +561,7 @@ export default defineContentScript({
           ],
         });
       } else if (isIgProfilePath(location.pathname) && supportsFsAccess) {
+        if (injectAccountInlineButton()) { setFloatingBar(null); return; }
         setFloatingBar({
           kind: 'account',
           items: [{ label: t('accountAll'), onClick: () => downloadAccount() }],
