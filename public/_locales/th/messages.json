@@ -62,6 +62,9 @@
   "accountAll": {
     "message": "⬇ ทั้งบัญชี"
   },
+  "accountAllTitle": {
+    "message": "ดาวน์โหลดทั้งบัญชี"
+  },
   "msgChoosingFolder": {
     "message": "กำลังเลือกโฟลเดอร์…"
   },
