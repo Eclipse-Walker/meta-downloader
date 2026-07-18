@@ -4,7 +4,11 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 100;
+  /* Match the floating bar/toast — IG's own overlays (previews, tooltips) can
+     otherwise paint above a low z-index and steal the hover, making the
+     button vanish right as the cursor reaches it. */
+  z-index: 2147483647;
+  pointer-events: auto;
   width: 32px;
   height: 32px;
   display: flex;
@@ -18,12 +22,37 @@
   opacity: 0;
   transition: opacity 0.15s, background 0.15s;
 }
-article:hover > .igdl-btn,
-a:hover > .igdl-btn {
+/* Visibility is driven by JS (igdl-visible), not a CSS :hover combinator —
+   a pure `article:hover > .igdl-btn` selector depends on the browser's hit
+   test staying on `article` the whole time, which an IG overlay stealing the
+   pointer for even an instant breaks. JS adds a grace period instead. */
+.igdl-btn.igdl-visible {
   opacity: 1;
 }
 .igdl-btn:hover {
   background: #e1306c;
+}
+
+/* inline button next to the post's Save/bookmark icon — always visible like
+   IG's own action-bar icons, so no hover-reveal/positioning tricks needed */
+.igdl-btn.igdl-inline {
+  all: unset;
+  position: static;
+  opacity: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.igdl-btn.igdl-inline:hover {
+  opacity: 0.6;
+  background: none;
 }
 
 /* floating bar (story) */
