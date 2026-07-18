@@ -336,15 +336,55 @@ export default defineContentScript({
       return b;
     }
 
-    // buttons on posts (feed / post page)
+    // Show while hovering the container OR the button, with a short grace
+    // period before hiding — an IG overlay stealing the pointer for an
+    // instant (see the CSS comment above) no longer makes the button vanish
+    // mid-reach, and it stays interactive while the mouse is over it.
+    function attachHoverReveal(container: HTMLElement, btn: HTMLElement) {
+      let hideTimer: ReturnType<typeof setTimeout> | undefined;
+      const show = () => { clearTimeout(hideTimer); btn.classList.add('igdl-visible'); };
+      const scheduleHide = () => {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => btn.classList.remove('igdl-visible'), 250);
+      };
+      container.addEventListener('mouseenter', show);
+      container.addEventListener('mouseleave', scheduleHide);
+      btn.addEventListener('mouseenter', show);
+      btn.addEventListener('mouseleave', scheduleHide);
+    }
+
+    // The Save/bookmark button's icon shape, not its class name — IG rotates
+    // obfuscated classes on nearly every deploy but rarely redraws the icon
+    // itself, so this survives layout changes far better than a class match.
+    const POST_BOOKMARK_SEL =
+      'div[role="button"]:has([points="20 21 12 13.44 4 21 4 3 20 3 20 21"]),' +
+      'div[role="button"]:has([d="M20 22a.999.999 0 0 1-.687-.273L12 14.815l-7.313 6.912A1 1 0 0 1 3 21V3a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1Z"])';
+
+    // buttons on posts (feed / post page) — placed next to the Save button
     function injectPostButtons() {
-      for (const article of document.querySelectorAll<HTMLElement>('article[__igdl_id]')) {
-        if (article.dataset.igdlBtn) continue;
-        article.dataset.igdlBtn = '1';
-        if (getComputedStyle(article).position === 'static') article.style.position = 'relative';
-        article.appendChild(
-          makeBtn('igdl-corner', t('postDownloadTitle'), () => downloadPost(idFromElement(article))),
-        );
+      for (const bookmark of document.querySelectorAll<HTMLElement>(POST_BOOKMARK_SEL)) {
+        const article = bookmark.closest('article');
+        // `slot` is bookmark's own wrapper — IG scopes its hover-highlight CSS
+        // to it, so hovering anything *inside* slot (a descendant) triggers
+        // that highlight too. Insert into `row` (one level up) instead: a
+        // sibling of slot, not a child of it, so our button's hover can never
+        // bleed into Save's hover state.
+        const slot = bookmark.parentElement;
+        const row = slot?.parentElement;
+        if (!article || !slot || !row) continue;
+        // Checked on the DOM itself, not a dataset flag on `bookmark` — IG can
+        // replace that node on re-render, which would defeat a flag check and
+        // inject a second button next to the first.
+        if (row.querySelector(':scope > .igdl-inline')) continue;
+
+        // `row` may have held only the Save slot before (no sibling to lay
+        // out against) — force a horizontal row so our button sits beside it
+        // instead of stacking underneath as a block-level child.
+        row.style.setProperty('display', 'flex');
+        row.style.setProperty('align-items', 'center');
+
+        const btn = makeBtn('igdl-inline', t('postDownloadTitle'), () => downloadPost(idFromElement(article)));
+        row.insertBefore(btn, slot);
       }
     }
 
@@ -355,7 +395,9 @@ export default defineContentScript({
         if (tile.dataset.igdlBtn) continue;
         tile.dataset.igdlBtn = '1';
         if (getComputedStyle(tile).position === 'static') tile.style.position = 'relative';
-        tile.appendChild(makeBtn('igdl-corner', t('postDownloadTitle'), () => downloadPost(idFromElement(tile))));
+        const btn = makeBtn('igdl-corner', t('postDownloadTitle'), () => downloadPost(idFromElement(tile)));
+        tile.appendChild(btn);
+        attachHoverReveal(tile, btn);
       }
     }
 
