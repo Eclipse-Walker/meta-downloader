@@ -18,7 +18,7 @@ On-page buttons injected while browsing instagram.com (must be logged in):
 | Feed post / post page (single image/video) | ⬇ next to the Save (bookmark) button | Download that post |
 | Feed post / post page (carousel) | ⬇ / ⬇⬇ next to the Save (bookmark) button | Download the currently-viewed slide / download every slide |
 | Profile / explore / saved grid | ⬇ on the tile (on hover) | Download that post |
-| Story page | Floating bottom-right: **This story / All** | Download the current story or the whole reel |
+| Story page | ⬇ / ⬇⬇ next to the mute/pause/more controls (falls back to a floating bottom-right bar if that row can't be found) | Download the current story or the whole reel |
 | Profile page | Floating bottom-right: **Whole account** | Pick a folder, then download every post (skips files already saved) |
 
 Posts and stories save to your normal Downloads folder as `<username>_<taken_at>_<id>.<ext>`. Whole-account download saves into a folder you pick via the File System Access API (Chromium only; the handle is remembered in IndexedDB so you only choose once).
