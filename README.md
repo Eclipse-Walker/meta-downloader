@@ -15,7 +15,8 @@ On-page buttons injected while browsing instagram.com (must be logged in):
 
 | Where | Button | Action |
 | --- | --- | --- |
-| Feed post / post page | ⬇ next to the Save (bookmark) button | Download that post (all carousel items) |
+| Feed post / post page (single image/video) | ⬇ next to the Save (bookmark) button | Download that post |
+| Feed post / post page (carousel) | ⬇ / ⬇⬇ next to the Save (bookmark) button | Download the currently-viewed slide / download every slide |
 | Profile / explore / saved grid | ⬇ on the tile (on hover) | Download that post |
 | Story page | Floating bottom-right: **This story / All** | Download the current story or the whole reel |
 | Profile page | Floating bottom-right: **Whole account** | Pick a folder, then download every post (skips files already saved) |

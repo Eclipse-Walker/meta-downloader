@@ -246,6 +246,22 @@ export default defineContentScript({
       }
     }
 
+    // Carousel pagination dots — presence/count tells us it's a carousel at
+    // all, and which one is "active" tells us the currently-viewed slide.
+    // Class-name based (IG doesn't expose this via any icon shape or stable
+    // ARIA marker), same fragility class as the fiber tagger: expect this to
+    // need updating if IG reshuffles the carousel markup.
+    const SLIDER_BUBBLE_SEL = '.JSZAJ, .ijCUd, ._acnb';
+    const SLIDER_BUBBLE_ACTIVE_SEL = '.XCodT, ._acnb._acnf';
+
+    function currentSlideIndex(article: Element): number {
+      const bubbles = [...article.querySelectorAll(SLIDER_BUBBLE_SEL)];
+      if (bubbles.length === 0) return 0;
+      const active = article.querySelector(SLIDER_BUBBLE_ACTIVE_SEL);
+      const idx = bubbles.findIndex((b) => b === active);
+      return idx === -1 ? 0 : idx; // couldn't tell which is active — default to the first slide
+    }
+
     // ── download flows ──
     async function downloadPost(mediaId: string | null) {
       if (!mediaId) throw new Error('Could not determine the post id.');
@@ -256,6 +272,16 @@ export default defineContentScript({
         await saveMedia(items[i]);
       }
       toast(`✓ ${t('msgDone')} (${items.length})`);
+    }
+
+    // Download only the carousel slide currently being viewed.
+    async function downloadCurrentSlide(mediaId: string | null, article: Element) {
+      if (!mediaId) throw new Error('Could not determine the post id.');
+      toast(t('msgFetchingPost'), true);
+      const items = await getPostItems(mediaId);
+      const idx = Math.min(currentSlideIndex(article), items.length - 1);
+      await saveMedia(items[idx]);
+      toast(`✓ ${t('msgDone')} (1)`);
     }
 
     async function downloadStory(all: boolean) {
@@ -327,11 +353,11 @@ export default defineContentScript({
     }
 
     // ── injected buttons ──
-    function makeBtn(cls: string, title: string, onClick: () => Promise<void>) {
+    function makeBtn(cls: string, title: string, onClick: () => Promise<void>, glyph = '⬇') {
       const b = document.createElement('button');
       b.className = 'igdl-btn ' + cls;
       b.title = title;
-      b.textContent = '⬇';
+      b.textContent = glyph;
       b.onclick = guard(onClick);
       return b;
     }
@@ -362,7 +388,12 @@ export default defineContentScript({
 
     // buttons on posts (feed / post page) — placed next to the Save button
     function injectPostButtons() {
+      // IG often renders a duplicate action bar for mobile/desktop responsive
+      // layout (one hidden via CSS) — both match POST_BOOKMARK_SEL, so without
+      // this an article could get two button pairs, one per bar.
+      const handledArticles = new Set<Element>();
       for (const bookmark of document.querySelectorAll<HTMLElement>(POST_BOOKMARK_SEL)) {
+        if (bookmark.offsetParent === null) continue; // hidden duplicate bar
         const article = bookmark.closest('article');
         // `slot` is bookmark's own wrapper — IG scopes its hover-highlight CSS
         // to it, so hovering anything *inside* slot (a descendant) triggers
@@ -371,11 +402,12 @@ export default defineContentScript({
         // bleed into Save's hover state.
         const slot = bookmark.parentElement;
         const row = slot?.parentElement;
-        if (!article || !slot || !row) continue;
+        if (!article || !slot || !row || handledArticles.has(article)) continue;
         // Checked on the DOM itself, not a dataset flag on `bookmark` — IG can
         // replace that node on re-render, which would defeat a flag check and
         // inject a second button next to the first.
-        if (row.querySelector(':scope > .igdl-inline')) continue;
+        if (row.querySelector(':scope > .igdl-inline')) { handledArticles.add(article); continue; }
+        handledArticles.add(article);
 
         // `row` may have held only the Save slot before (no sibling to lay
         // out against) — force a horizontal row so our button sits beside it
@@ -383,8 +415,19 @@ export default defineContentScript({
         row.style.setProperty('display', 'flex');
         row.style.setProperty('align-items', 'center');
 
-        const btn = makeBtn('igdl-inline', t('postDownloadTitle'), () => downloadPost(idFromElement(article)));
-        row.insertBefore(btn, slot);
+        // Carousels get two buttons (current slide / whole post) since they're
+        // genuinely different actions; a single-image post only needs one —
+        // "current" and "all" would be the exact same download.
+        const isCarousel = article.querySelectorAll(SLIDER_BUBBLE_SEL).length > 1;
+        if (isCarousel) {
+          const btnAll = makeBtn('igdl-inline', t('postDownloadAllTitle'), () => downloadPost(idFromElement(article)), '⬇⬇');
+          const btnCurrent = makeBtn('igdl-inline', t('postDownloadCurrentTitle'), () => downloadCurrentSlide(idFromElement(article), article));
+          row.insertBefore(btnAll, slot);
+          row.insertBefore(btnCurrent, btnAll);
+        } else {
+          const btn = makeBtn('igdl-inline', t('postDownloadTitle'), () => downloadPost(idFromElement(article)));
+          row.insertBefore(btn, slot);
+        }
       }
     }
 
