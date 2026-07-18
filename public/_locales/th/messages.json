@@ -23,6 +23,12 @@
   "postDownloadTitle": {
     "message": "ดาวน์โหลดโพสต์นี้"
   },
+  "postDownloadCurrentTitle": {
+    "message": "ดาวน์โหลดรูป/วิดีโอนี้"
+  },
+  "postDownloadAllTitle": {
+    "message": "ดาวน์โหลดทั้งโพสต์"
+  },
   "storyThis": {
     "message": "⬇ สตอรี่นี้"
   },

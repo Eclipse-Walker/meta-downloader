@@ -23,6 +23,12 @@
   "postDownloadTitle": {
     "message": "Download this post"
   },
+  "postDownloadCurrentTitle": {
+    "message": "Download this photo/video"
+  },
+  "postDownloadAllTitle": {
+    "message": "Download all in this post"
+  },
   "storyThis": {
     "message": "⬇ This story"
   },
