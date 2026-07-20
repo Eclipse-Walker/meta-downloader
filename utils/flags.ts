@@ -42,3 +42,24 @@ export function onFlagsChanged(cb: (flags: FeatureFlags) => void): () => void {
   browser.storage.onChanged.addListener(listener);
   return () => browser.storage.onChanged.removeListener(listener);
 }
+
+// ── popup theme preference ──
+// 'system' follows the browser/OS (prefers-color-scheme); 'light'/'dark'
+// force it. Only affects the popup surface — the on-page IG buttons follow
+// IG's own theme.
+export type Theme = 'system' | 'light' | 'dark';
+export const DEFAULT_THEME: Theme = 'system';
+const THEME_KEY = 'theme';
+
+export async function loadTheme(): Promise<Theme> {
+  try {
+    const stored = await browser.storage.local.get(THEME_KEY);
+    return (stored[THEME_KEY] as Theme | undefined) ?? DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
+
+export async function saveTheme(theme: Theme): Promise<void> {
+  await browser.storage.local.set({ [THEME_KEY]: theme });
+}

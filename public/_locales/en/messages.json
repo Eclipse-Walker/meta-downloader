@@ -47,6 +47,18 @@
   "flagAccountDesc": {
     "message": "Bulk-download every post to a folder"
   },
+  "themeHeading": {
+    "message": "Appearance"
+  },
+  "themeSystem": {
+    "message": "System"
+  },
+  "themeLight": {
+    "message": "Light"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
   "postDownloadTitle": {
     "message": "Download this post"
   },
