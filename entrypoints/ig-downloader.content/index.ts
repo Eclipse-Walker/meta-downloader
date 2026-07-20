@@ -546,7 +546,7 @@ export default defineContentScript({
 
       row.style.setProperty('display', 'flex');
       row.style.setProperty('align-items', 'center');
-      row.appendChild(makeBtn('igdl-inline', t('accountAllTitle'), () => downloadAccount(), '⬇'));
+      row.appendChild(makeBtn('igdl-inline igdl-account', t('accountAllTitle'), () => downloadAccount(), t('accountAll')));
       return true;
     }
 
