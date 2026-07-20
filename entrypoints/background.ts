@@ -194,9 +194,9 @@ export default defineBackground(() => {
   }
 
   // Tries the highest-res source first and falls back down the chain:
-  //   1. IG's own web GraphQL (true 1080px "www" image, needs an active IG login)
-  //   2. Private mobile /info/ endpoint (1080px but often center-cropped)
-  //   3. URLs already present in the web profile (last resort, ~320px)
+  //   1. IG's own web GraphQL (full-resolution HD "www" image, needs an active IG login)
+  //   2. Private mobile /info/ endpoint (HD but often center-cropped)
+  //   3. URLs already present in the web profile (last resort, low-resolution)
   async function resolveInstagramImageUrl(profile: any, tabId: number | undefined) {
     try {
       const hd = await getInstagramHDViaGraphQL(profile, tabId);
