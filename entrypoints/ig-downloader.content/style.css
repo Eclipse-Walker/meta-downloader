@@ -55,6 +55,34 @@
   background: none;
 }
 
+/* "Download whole account" — a labeled pill (not just an icon) so it reads
+   clearly next to Follow/Message, using IG's own signature gradient (same
+   stops as the app icon/story ring) so it still feels on-brand. */
+.igdl-btn.igdl-account {
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  margin-left: 8px;
+  border-radius: 8px;
+  background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d, #f77737, #fcaf45);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.igdl-btn.igdl-account:hover {
+  /* Re-assert the gradient: `.igdl-inline:hover` sets `background: none` with
+     higher specificity (an extra :hover) than `.igdl-account`'s base rule, so
+     without this the gradient vanished on hover — a plain pill matching
+     whatever's behind it (white in light mode, near-black in dark mode). */
+  background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d, #f77737, #fcaf45);
+  opacity: 1;
+  transform: scale(1.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
 /* floating bar (story) */
 #igdl-bar {
   position: fixed;
