@@ -7,7 +7,7 @@ export default defineConfig({
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
     default_locale: 'en',
-    permissions: ['contextMenus', 'declarativeNetRequest', 'downloads', 'scripting', 'tabs'],
+    permissions: ['contextMenus', 'declarativeNetRequest', 'downloads', 'scripting', 'storage', 'tabs'],
     host_permissions: [
       'https://*.instagram.com/*',
       'https://www.instagram.com/*',

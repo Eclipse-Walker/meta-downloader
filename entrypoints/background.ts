@@ -1,4 +1,5 @@
 import { parseIgUsername } from '@/utils/ig';
+import { loadFlags } from '@/utils/flags';
 
 // User-Agent strings required by Instagram's private API for each endpoint.
 const IG_UA_IPHONE =
@@ -116,6 +117,7 @@ export default defineBackground(() => {
         console.warn('Tab or URL is undefined');
         return;
       }
+      if (!(await loadFlags()).profilePic) return; // feature disabled in popup
       await handleProfilePicture(tab, { download: false });
     } catch (error) {
       console.warn('error:genericOnClick:', error);

@@ -1,5 +1,6 @@
 import './style.css';
 import { isIgProfilePath, shortcodeToId } from '@/utils/ig';
+import { DEFAULT_FLAGS, loadFlags, onFlagsChanged, type FeatureFlags } from '@/utils/flags';
 
 // Isolated world: calls IG's private REST API, injects the download buttons,
 // and writes files. Media ids come from the __igdl_id attribute stamped by the
@@ -16,7 +17,7 @@ export default defineContentScript({
   exclude: ['firefox'],
   cssInjectionMode: 'manifest',
   runAt: 'document_idle',
-  main() {
+  async main() {
     const t = browser.i18n.getMessage;
     const log = (...a: any[]) => console.log('%c[IGDL]', 'color:#e1306c;font-weight:bold', ...a);
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -556,7 +557,7 @@ export default defineContentScript({
     }
 
     function updateFloatingBar() {
-      if (isStory()) {
+      if (isStory() && flags.story) {
         if (injectStoryInlineButtons()) { setFloatingBar(null); return; }
         setFloatingBar({
           kind: 'story',
@@ -565,7 +566,7 @@ export default defineContentScript({
             { label: t('storyAll'), onClick: () => downloadStory(true) },
           ],
         });
-      } else if (isIgProfilePath(location.pathname) && supportsFsAccess) {
+      } else if (isIgProfilePath(location.pathname) && supportsFsAccess && flags.account) {
         if (injectAccountInlineButton()) { setFloatingBar(null); return; }
         setFloatingBar({
           kind: 'account',
@@ -576,11 +577,23 @@ export default defineContentScript({
       }
     }
 
+    // ── feature flags ──
+    let flags: FeatureFlags = { ...DEFAULT_FLAGS };
+
+    // Wipe every injected element so a disabled feature's buttons disappear;
+    // refreshUI then re-adds only what's still enabled.
+    function removeInjected() {
+      document.querySelectorAll('.igdl-btn').forEach((b) => b.remove());
+      document.getElementById('igdl-bar')?.remove();
+    }
+
     // ── router ──
     function refreshUI() {
       try {
-        injectPostButtons();
-        injectGridButtons();
+        if (flags.post) {
+          injectPostButtons();
+          injectGridButtons();
+        }
         updateFloatingBar();
       } catch (e) { log('refreshUI error:', e); }
     }
@@ -597,6 +610,8 @@ export default defineContentScript({
     });
     new MutationObserver(scheduleRefresh).observe(document.body, { childList: true, subtree: true });
 
+    flags = await loadFlags();
+    onFlagsChanged((next) => { flags = next; removeInjected(); refreshUI(); });
     refreshUI();
     log('ready');
   },
