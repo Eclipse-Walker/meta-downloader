@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import './App.css';
+import { DEFAULT_FLAGS, loadFlags, saveFlags, type FeatureFlags } from '@/utils/flags';
 
 type Platform = 'instagram' | 'tiktok' | null;
+type MsgKey = Parameters<typeof browser.i18n.getMessage>[0];
 
 const t = browser.i18n.getMessage;
 
@@ -12,18 +14,35 @@ function detectPlatform(url?: string): Platform {
   return null;
 }
 
+const FLAG_ROWS: { key: keyof FeatureFlags; label: MsgKey; desc: MsgKey }[] = [
+  { key: 'profilePic', label: 'flagProfilePicLabel', desc: 'flagProfilePicDesc' },
+  { key: 'post', label: 'flagPostLabel', desc: 'flagPostDesc' },
+  { key: 'story', label: 'flagStoryLabel', desc: 'flagStoryDesc' },
+  { key: 'account', label: 'flagAccountLabel', desc: 'flagAccountDesc' },
+];
+
 function App() {
   const [platform, setPlatform] = useState<Platform>(null);
   const [status, setStatus] = useState('');
   const [isError, setIsError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [flags, setFlags] = useState<FeatureFlags>(DEFAULT_FLAGS);
 
   useEffect(() => {
     browser.tabs
       .query({ active: true, currentWindow: true })
       .then(([tab]) => setPlatform(detectPlatform(tab?.url)))
       .catch(() => setPlatform(null));
+    loadFlags().then(setFlags).catch(() => {});
   }, []);
+
+  function toggle(key: keyof FeatureFlags) {
+    setFlags((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveFlags(next).catch(() => {});
+      return next;
+    });
+  }
 
   async function download() {
     setBusy(true);
@@ -43,17 +62,48 @@ function App() {
   }
 
   return (
-    <>
-      <h1>{t('extName')}</h1>
-      {platform ? (
-        <button type="button" onClick={download} disabled={busy}>
-          {busy ? t('downloading') : t('downloadButton')}
-        </button>
-      ) : (
-        <p className="status">{t('openProfileHint')}</p>
+    <div className="app">
+      <header className="app__header">
+        <span className="app__logo" aria-hidden="true">⬇</span>
+        <h1 className="app__title">{t('extName')}</h1>
+      </header>
+
+      {flags.profilePic && (
+        <section className="card">
+          {platform ? (
+            <>
+              <button className="btn-primary" type="button" onClick={download} disabled={busy}>
+                {busy ? t('downloading') : t('downloadButton')}
+              </button>
+              {status && (
+                <p className={`status${isError ? ' status--error' : ''}`}>{status}</p>
+              )}
+            </>
+          ) : (
+            <p className="hint">{t('openProfileHint')}</p>
+          )}
+        </section>
       )}
-      {status && <p className={`status${isError ? ' error' : ''}`}>{status}</p>}
-    </>
+
+      <section className="settings">
+        <h2 className="settings__heading">{t('settingsHeading')}</h2>
+        {FLAG_ROWS.map((row) => (
+          <label className="toggle" key={row.key}>
+            <span className="toggle__text">
+              <span className="toggle__label">{t(row.label)}</span>
+              <span className="toggle__desc">{t(row.desc)}</span>
+            </span>
+            <input
+              type="checkbox"
+              className="toggle__input"
+              checked={flags[row.key]}
+              onChange={() => toggle(row.key)}
+            />
+            <span className="toggle__track" aria-hidden="true" />
+          </label>
+        ))}
+      </section>
+    </div>
   );
 }
 

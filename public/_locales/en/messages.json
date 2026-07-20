@@ -20,6 +20,33 @@
   "openProfileHint": {
     "message": "Open an Instagram or TikTok profile to download its picture."
   },
+  "settingsHeading": {
+    "message": "Download features"
+  },
+  "flagProfilePicLabel": {
+    "message": "Profile picture"
+  },
+  "flagProfilePicDesc": {
+    "message": "Toolbar icon & right-click menu"
+  },
+  "flagPostLabel": {
+    "message": "Posts"
+  },
+  "flagPostDesc": {
+    "message": "Buttons on posts & grids"
+  },
+  "flagStoryLabel": {
+    "message": "Stories"
+  },
+  "flagStoryDesc": {
+    "message": "Buttons in the story viewer"
+  },
+  "flagAccountLabel": {
+    "message": "Whole account"
+  },
+  "flagAccountDesc": {
+    "message": "Bulk-download every post to a folder"
+  },
   "postDownloadTitle": {
     "message": "Download this post"
   },

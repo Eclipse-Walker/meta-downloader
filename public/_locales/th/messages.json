@@ -20,6 +20,33 @@
   "openProfileHint": {
     "message": "เปิดหน้าโปรไฟล์ Instagram หรือ TikTok เพื่อดาวน์โหลดรูปโปรไฟล์"
   },
+  "settingsHeading": {
+    "message": "ฟีเจอร์ดาวน์โหลด"
+  },
+  "flagProfilePicLabel": {
+    "message": "รูปโปรไฟล์"
+  },
+  "flagProfilePicDesc": {
+    "message": "ไอคอนบนแถบเครื่องมือและเมนูคลิกขวา"
+  },
+  "flagPostLabel": {
+    "message": "โพสต์"
+  },
+  "flagPostDesc": {
+    "message": "ปุ่มบนโพสต์และกริด"
+  },
+  "flagStoryLabel": {
+    "message": "สตอรี่"
+  },
+  "flagStoryDesc": {
+    "message": "ปุ่มในหน้าดูสตอรี่"
+  },
+  "flagAccountLabel": {
+    "message": "ทั้งบัญชี"
+  },
+  "flagAccountDesc": {
+    "message": "ดาวน์โหลดทุกโพสต์ลงโฟลเดอร์"
+  },
   "postDownloadTitle": {
     "message": "ดาวน์โหลดโพสต์นี้"
   },
