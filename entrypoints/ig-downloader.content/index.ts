@@ -476,7 +476,7 @@ export default defineContentScript({
     // guess: the mute/pause/more row sits near the top-right of the story
     // viewer. Best-effort; the floating bar below is the fallback if IG's
     // actual layout doesn't match this heuristic.
-    function findStoryControlRow(): HTMLElement | null {
+    function findStoryControlAnchor(): HTMLElement | null {
       const candidates = [...document.querySelectorAll<HTMLElement>('div[role="button"] svg')]
         .map((svg) => svg.closest<HTMLElement>('div[role="button"]'))
         .filter((btn): btn is HTMLElement => {
@@ -484,19 +484,24 @@ export default defineContentScript({
           const r = btn.getBoundingClientRect();
           return r.top > 0 && r.top < 120 && r.left > window.innerWidth * 0.6;
         });
-      return candidates[0]?.parentElement ?? null;
+      return candidates[0] ?? null;
     }
 
     // Returns true if the buttons are (now) sitting inline in the story's own
     // control row, so the caller can skip the floating-bar fallback.
     function injectStoryInlineButtons(): boolean {
-      const row = findStoryControlRow();
-      if (!row) return false;
+      const anchor = findStoryControlAnchor();
+      const row = anchor?.parentElement;
+      if (!anchor || !row) return false;
       if (row.querySelector(':scope > .igdl-inline')) return true;
 
+      // Insert right before the matched control icon (mute), not at the row's
+      // start — that row is the story's whole top bar (avatar/username/
+      // timestamp included), so `row.firstChild` landed next to the profile
+      // info instead of next to mute/pause.
       const btnAll = makeBtn('igdl-inline', t('storyAllTitle'), () => downloadStory(true), '⬇⬇');
       const btnThis = makeBtn('igdl-inline', t('storyThisTitle'), () => downloadStory(false));
-      row.insertBefore(btnAll, row.firstChild);
+      row.insertBefore(btnAll, anchor);
       row.insertBefore(btnThis, btnAll);
       return true;
     }
