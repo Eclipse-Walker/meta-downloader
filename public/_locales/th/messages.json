@@ -47,6 +47,18 @@
   "flagAccountDesc": {
     "message": "ดาวน์โหลดทุกโพสต์ลงโฟลเดอร์"
   },
+  "themeHeading": {
+    "message": "ธีม"
+  },
+  "themeSystem": {
+    "message": "ตามระบบ"
+  },
+  "themeLight": {
+    "message": "สว่าง"
+  },
+  "themeDark": {
+    "message": "มืด"
+  },
   "postDownloadTitle": {
     "message": "ดาวน์โหลดโพสต์นี้"
   },

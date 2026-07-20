@@ -27,14 +27,25 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Follow the browser only when the user hasn't forced a theme (no attribute
+   yet, or "system"). An explicit data-theme="light"/"dark" wins by selector
+   specificity regardless of source order. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
     --bg: #161618;
     --surface: #1f1f22;
     --text: #f2f2f5;
     --muted: #9a9aa2;
     --border: #2c2c31;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #161618;
+  --surface: #1f1f22;
+  --text: #f2f2f5;
+  --muted: #9a9aa2;
+  --border: #2c2c31;
 }
 
 * {
